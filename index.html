@@ -36,7 +36,8 @@
   .main { display: flex; justify-content: center; align-items: center; gap: 1em; margin: .3em 0 .2em; }
   .icon { width: 8em; height: 8em; flex: none; transition: opacity .5s ease; animation: bob 6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-.25em); } }
-  .temp { font-size: 4.6em; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .temp { font-size: 4.6em; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; transition: opacity .4s ease; }
+  .temp.out { opacity: 0; }
   .temp sup { font-size: .35em; font-weight: 400; opacity: .7; vertical-align: top; position: relative; top: .35em; margin-inline-start: .1em; }
   .cond { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.5em; margin-bottom: .5em; }
   .cond small { font-size: 1.1em; opacity: .75; text-align: left; }
@@ -74,7 +75,7 @@
   </div>
   <div class="main">
     <svg class="icon" id="icon"><use href="#i-sun"/></svg>
-    <div class="temp"><span id="temp">--</span><sup>°C</sup></div>
+    <div class="temp"><span id="temp">--</span><sup id="unit">°C</sup></div>
   </div>
   <div class="cond"><span id="cond-en">Loading…</span><small id="cond-ar"></small></div>
   <div class="stat" id="stat"><svg><use id="stat-i" href="#i-feel"/></svg><span id="stat-l">Feels like</span><b id="stat-v">--</b></div>
@@ -131,15 +132,8 @@
       $('icon').style.opacity = 0;
       setTimeout(() => { use.setAttribute('href', '#' + icon); $('icon').style.opacity = 1; }, 450);
     }
-    $('temp').textContent = Math.round(d.temp);
-    const vis = d.visKm == null ? '--' : (d.visKm >= 10 ? '10+' : d.visKm.toFixed(1).replace(/\.0$/, ''));
-    stats = [
-      ['i-feel', 'Feels like', Math.round(d.feel) + '°'],
-      ['i-wind', 'Wind', Math.round(d.wind) + ' km/h'],
-      ['i-drop', 'Humidity', Math.round(d.hum) + '%'],
-      ['i-eye',  'Visibility', vis + ' km'],
-    ];
-    showStat(false);
+    cur = d;
+    applyUnits();
     $('cond-en').textContent = en;
     $('cond-ar').textContent = ar;
     $('card').classList.toggle('old', !!stale);
@@ -179,6 +173,29 @@
       } catch (e2) {}
     }
   }
+
+  // Temperature alternates °C / °F on the same cadence as the detail line.
+  let cur = null, useF = false;
+  const deg = c => Math.round(useF ? c * 9 / 5 + 32 : c);
+  function applyUnits() {
+    if (!cur) return;
+    $('temp').textContent = deg(cur.temp);
+    $('unit').textContent = useF ? '°F' : '°C';
+    const d = cur;
+    const vis = d.visKm == null ? '--' : (d.visKm >= 10 ? '10+' : d.visKm.toFixed(1).replace(/\.0$/, ''));
+    stats = [
+      ['i-feel', 'Feels like', deg(d.feel) + '°'],
+      ['i-wind', 'Wind', Math.round(d.wind) + ' km/h'],
+      ['i-drop', 'Humidity', Math.round(d.hum) + '%'],
+      ['i-eye',  'Visibility', vis + ' km'],
+    ];
+    showStat(false);
+  }
+  setInterval(() => {
+    const t = document.querySelector('.temp'), s = $('stat');
+    t.classList.add('out'); s.classList.add('out');
+    setTimeout(() => { useF = !useF; applyUnits(); t.classList.remove('out'); s.classList.remove('out'); }, 400);
+  }, 10000);
 
   // Rotate one detail at a time so the text can stay large.
   const STAT_MS = 10000;
