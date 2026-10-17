@@ -65,7 +65,8 @@
   /* Clock widget: same card, colors and sizing as the weather widget */
   .main { height: 8em; }
   .temp sup { font-size: .32em; }
-  .cond { margin-bottom: .5em; }
+  .cond { margin-bottom: .5em; justify-content: center; transition: opacity .4s ease; }
+  .cond.out { opacity: 0; }
   .stat { justify-content: center; }
   .stat b { white-space: nowrap; margin-inline-start: 0; }
 </style>
@@ -73,13 +74,10 @@
 <body>
 
 <div id="card">
-  <div class="head">
-    <div class="city">Riyadh<span>الرياض</span></div>
-  </div>
   <div class="main">
     <div class="temp"><span id="time">--:--</span><sup id="ampm"></sup></div>
   </div>
-  <div class="cond"><span id="day-en">&nbsp;</span><small id="day-ar" dir="rtl" lang="ar"></small></div>
+  <div class="cond" id="cond"><span id="day">&nbsp;</span></div>
   <div class="stat" id="stat"><b id="stat-v">--</b></div>
 </div>
 
@@ -112,7 +110,7 @@
   const fDateAr = F('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
   const fHijri = F('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  // Detail line rotates: English date -> Hijri date (Arabic)
+  // Detail line rotates: English weekday + Gregorian date -> Arabic weekday + Hijri date
   let si = 0;
   function dates(now) {
     return [[fDateEn.format(now), "ltr"], [fHijri.format(now).replace(/\s*هـ$/, ''), 'rtl']];
@@ -125,9 +123,9 @@
     const h = get('hour'), m = get('minute');
     $('time').textContent = (H24 ? h.padStart(2, '0') : h) + ':' + m;
     $('ampm').textContent = H24 ? '' : get('dayPeriod').toUpperCase();
-    $('day-en').textContent = fDayEn.format(now);
-    $('day-ar').textContent = fDayAr.format(now);
+    $('day').textContent = (si % 2 ? fDayAr : fDayEn).format(now);
     const [v, dir] = dates(now)[si % 2];
+    $('cond').dir = dir; $('cond').lang = dir === 'rtl' ? 'ar' : 'en';
     $("stat").dir = dir; $("stat").lang = dir === "rtl" ? "ar" : "en";
     $('stat-v').textContent = v;
     card.classList.add('on');
@@ -135,9 +133,9 @@
   tick(); setInterval(tick, 1000);
 
   setInterval(() => {
-    const el = $('stat');
-    el.classList.add('out');
-    setTimeout(() => { si++; tick(); el.classList.remove('out'); }, 400);
+    const els = [$('stat'), $('cond')];
+    els.forEach(e => e.classList.add('out'));
+    setTimeout(() => { si++; tick(); els.forEach(e => e.classList.remove('out')); }, 400);
   }, 10000);
 })();
 </script>
