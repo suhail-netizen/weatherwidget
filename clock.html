@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Riyadh Clock Widget</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* OBS: Browser Source -> Local file -> this file. Width 520, Height 340 (scales with ?scale=). Background stays transparent. */
+  :root { --scale: 1; --accent: #0E7C66; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  body { font-family: "Segoe UI", "Noto Sans Arabic", Tahoma, Arial, sans-serif; }
+
+  #card {
+    width: calc(400px * var(--scale));
+    padding: calc(22px * var(--scale)) calc(26px * var(--scale));
+    background: transparent;
+    border: calc(2px * var(--scale)) solid transparent;
+    border-radius: calc(22px * var(--scale));
+    color: #0B1F33;
+    text-shadow: 0 0 6px rgba(255,255,255,.8);
+    font-size: calc(19px * var(--scale));
+    opacity: 0; transform: translateY(12px);
+    transition: opacity .8s ease, transform .8s ease;
+  }
+  #card.on { opacity: 1; transform: none; }
+  /* Add ?bg=1 to the URL for a dark panel behind the widget */
+  #card.panel { border-color: rgba(255,255,255,.14); background-clip: padding-box; text-shadow: 0 0 6px rgba(255,255,255,.8); }
+  /* Dark outline behind the text keeps it readable on any background */
+  #card { -webkit-text-stroke: calc(4px * var(--scale)) rgba(255,255,255,.95); paint-order: stroke fill; }
+  #card.light { -webkit-text-stroke: 0; }
+  #card:not(.panel) svg { filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+  /* Weather icon: soft dark drop shadow for depth + faint light glow for pop */
+  #card.panel svg.icon { filter: drop-shadow(0 .15em .25em rgba(0,0,0,.55)) drop-shadow(0 0 .2em var(--glow, #fff)) drop-shadow(0 0 .55em var(--glow, #fff)); }
+  #card:not(.panel) svg.icon { filter: drop-shadow(0 .15em .25em rgba(0,0,0,.7)) drop-shadow(0 0 .2em var(--glow, #fff)) drop-shadow(0 0 .55em var(--glow, #fff)); }
+
+  .head { display: flex; justify-content: center; align-items: baseline; }
+  .city { font-size: 1.8em; font-weight: 600; }
+  .city span { font-weight: 600; margin-inline-start: .3em; font-size: 1.1em; }
+  .clock { font-size: 1.1em; color: #0B1F33; font-variant-numeric: tabular-nums; }
+
+  .main { display: flex; justify-content: center; align-items: center; gap: 1em; margin: .3em 0 .2em; }
+  .icon { width: 8em; height: 8em; flex: none; transition: opacity .5s ease; animation: bob 6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-.25em); } }
+  .temp { font-size: 4.6em; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; transition: opacity .4s ease; }
+  .temp.out { opacity: 0; }
+  .temp sup { font-size: .35em; font-weight: 400; opacity: 1; vertical-align: top; position: relative; top: .35em; margin-inline-start: .1em; }
+  .cond { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.9em; margin-bottom: .5em; }
+  .cond small { font-size: 1.1em; text-align: left; }
+
+  .stat { display: flex; align-items: center; gap: .5em; font-size: 1.9em; color: #0B1F33; border-top: 1px solid rgba(11,31,51,.3); padding-top: .5em; transition: opacity .4s ease; }
+  .stat.out { opacity: 0; }
+  .stat svg { width: 1.2em; height: 1.2em; flex: none; }
+  .stat b { color: inherit; font-weight: 600; margin-inline-start: auto; }
+  #card.old .stat::after { content: "•"; color: #E8A33D; }
+  /* Light backgrounds: add ?theme=light for dark text and outlined icons */
+  #card.light { color: #10243A; text-shadow: none; }
+  #card.light .clock { color: #3F566B; }
+  #card.light .stat { color: #1F384F; border-top-color: rgba(16,36,58,.22); }
+  #card.light svg.icon { filter: drop-shadow(0 0 .6px #2B4258) drop-shadow(0 0 .6px #2B4258) drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+  #card.light:not(.panel) svg { filter: none; }
+  #card.light:not(.panel) svg.icon { filter: drop-shadow(0 0 .6px #2B4258) drop-shadow(0 0 .6px #2B4258) drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+</style>
+<style>
+  /* Clock widget: same card, colors and sizing as the weather widget */
+  .main { height: 8em; }
+  .temp sup { font-size: .32em; }
+  .cond { margin-bottom: .5em; }
+  .stat { justify-content: center; }
+  .stat b { white-space: nowrap; margin-inline-start: 0; }
+</style>
+</head>
+<body>
+
+<div id="card">
+  <div class="head">
+    <div class="city">Riyadh<span>الرياض</span></div>
+  </div>
+  <div class="main">
+    <div class="temp"><span id="time">--:--</span><sup id="ampm"></sup></div>
+  </div>
+  <div class="cond"><span id="day-en">&nbsp;</span><small id="day-ar" dir="rtl" lang="ar"></small></div>
+  <div class="stat" id="stat"><b id="stat-v">--</b></div>
+</div>
+
+<script>
+(() => {
+  // URL params: ?bg=teal&alpha=0.3&scale=1.5&theme=light&tz=Asia/Riyadh&h24=1
+  const q = new URLSearchParams(location.search);
+  const card = document.getElementById('card');
+  if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
+  if (q.get('theme') === 'light') card.classList.add('light');
+  const bg = q.get('bg');
+  if (bg) {
+    const P = { '1':'#0A121E', navy:'#0A121E', teal:'#0B5D4E', blue:'#14457A', charcoal:'#262E36', plum:'#4A2556' };
+    const col = P[bg] || (/^#[0-9a-f]{3,8}$/i.test(bg) ? bg : P.navy);
+    card.classList.add('panel');
+    const a = Math.min(1, Math.max(0, parseFloat(q.get('alpha') ?? '0.3')));
+    card.style.background = `color-mix(in srgb, ${col} ${a * 100}%, transparent)`;
+  }
+  if (q.get('accent')) document.documentElement.style.setProperty('--accent', q.get('accent'));
+
+  const TZ = q.get('tz') || 'Asia/Riyadh';
+  const H24 = q.get('h24') === '1';
+  const $ = id => document.getElementById(id);
+  const F = (loc, opts) => new Intl.DateTimeFormat(loc, { timeZone: TZ, ...opts });
+
+  const fTime = F('en-US-u-nu-latn', { hour: 'numeric', minute: '2-digit', hour12: !H24, hourCycle: H24 ? 'h23' : 'h12' });
+  const fDayEn = F('en-US', { weekday: 'long' });
+  const fDayAr = F('ar-SA-u-ca-gregory-nu-latn', { weekday: 'long' });
+  const fDateEn = F('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const fDateAr = F('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
+  const fHijri = F('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Detail line rotates: English date -> Hijri date (Arabic)
+  let si = 0;
+  function dates(now) {
+    return [[fDateEn.format(now), "ltr"], [fHijri.format(now).replace(/\s*هـ$/, ''), 'rtl']];
+  }
+
+  function tick() {
+    const now = new Date();
+    const parts = fTime.formatToParts(now);
+    const get = t => (parts.find(p => p.type === t) || {}).value || '';
+    const h = get('hour'), m = get('minute');
+    $('time').textContent = (H24 ? h.padStart(2, '0') : h) + ':' + m;
+    $('ampm').textContent = H24 ? '' : get('dayPeriod').toUpperCase();
+    $('day-en').textContent = fDayEn.format(now);
+    $('day-ar').textContent = fDayAr.format(now);
+    const [v, dir] = dates(now)[si % 2];
+    $("stat").dir = dir; $("stat").lang = dir === "rtl" ? "ar" : "en";
+    $('stat-v').textContent = v;
+    card.classList.add('on');
+  }
+  tick(); setInterval(tick, 1000);
+
+  setInterval(() => {
+    const el = $('stat');
+    el.classList.add('out');
+    setTimeout(() => { si++; tick(); el.classList.remove('out'); }, 400);
+  }, 10000);
+})();
+</script>
+</body>
+</html>
