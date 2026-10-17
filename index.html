@@ -27,22 +27,25 @@
   /* Add ?bg=1 to the URL for a dark panel behind the widget */
   #card.panel { border-color: rgba(255,255,255,.14); background-clip: padding-box; text-shadow: none; }
   #card:not(.panel) svg { filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+  /* Weather icon: soft dark drop shadow for depth + faint light glow for pop */
+  #card.panel svg.icon { filter: drop-shadow(0 .15em .25em rgba(0,0,0,.55)) drop-shadow(0 0 .2em var(--glow, #fff)) drop-shadow(0 0 .55em var(--glow, #fff)); }
+  #card:not(.panel) svg.icon { filter: drop-shadow(0 .15em .25em rgba(0,0,0,.7)) drop-shadow(0 0 .2em var(--glow, #fff)) drop-shadow(0 0 .55em var(--glow, #fff)); }
 
   .head { display: flex; justify-content: center; align-items: baseline; }
   .city { font-size: 1.8em; font-weight: 600; }
   .city span { font-weight: 600; margin-inline-start: .3em; font-size: 1.1em; }
-  .clock { font-size: 1.1em; color: #9fb4c8; font-variant-numeric: tabular-nums; }
+  .clock { font-size: 1.1em; color: #fff; font-variant-numeric: tabular-nums; }
 
   .main { display: flex; justify-content: center; align-items: center; gap: 1em; margin: .3em 0 .2em; }
   .icon { width: 8em; height: 8em; flex: none; transition: opacity .5s ease; animation: bob 6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-.25em); } }
   .temp { font-size: 4.6em; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; transition: opacity .4s ease; }
   .temp.out { opacity: 0; }
-  .temp sup { font-size: .35em; font-weight: 400; opacity: .7; vertical-align: top; position: relative; top: .35em; margin-inline-start: .1em; }
+  .temp sup { font-size: .35em; font-weight: 400; opacity: 1; vertical-align: top; position: relative; top: .35em; margin-inline-start: .1em; }
   .cond { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.9em; margin-bottom: .5em; }
   .cond small { font-size: 1.1em; text-align: left; }
 
-  .stat { display: flex; align-items: center; gap: .5em; font-size: 1.9em; color: #dde3ea; border-top: 1px solid rgba(255,255,255,.16); padding-top: .5em; transition: opacity .4s ease; }
+  .stat { display: flex; align-items: center; gap: .5em; font-size: 1.9em; color: #fff; border-top: 1px solid rgba(255,255,255,.16); padding-top: .5em; transition: opacity .4s ease; }
   .stat.out { opacity: 0; }
   .stat svg { width: 1.2em; height: 1.2em; flex: none; }
   .stat b { color: inherit; font-weight: 600; margin-inline-start: auto; }
@@ -124,6 +127,9 @@
     storm:   ['i-storm','i-storm',     'Thunderstorm',   'عاصفة رعدية'],
   };
 
+  // Per-icon glow color
+  const GLOW = { 'i-sun':'#FFC21A', 'i-moon':'#BFD4FF', 'i-part':'#FFC21A', 'i-partnight':'#BFD4FF', 'i-cloud':'#DCE6F5', 'i-rain':'#4DB3FF', 'i-storm':'#FFC21A', 'i-dust':'#E8A33D', 'i-haze':'#F2C566' };
+
   function classify(code, visKm, dust) {
     if (code >= 95) return 'storm';
     if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
@@ -145,9 +151,10 @@
     const [dayI, nightI, en, ar] = C[key];
     const icon = d.isDay ? dayI : nightI;
     const use = $('icon').firstElementChild;
+    if (!$('icon').style.getPropertyValue('--glow')) $('icon').style.setProperty('--glow', GLOW[icon] || '#fff');
     if (use.getAttribute('href') !== '#' + icon) {
       $('icon').style.opacity = 0;
-      setTimeout(() => { use.setAttribute('href', '#' + icon); $('icon').style.opacity = 1; }, 450);
+      setTimeout(() => { use.setAttribute('href', '#' + icon); $('icon').style.setProperty('--glow', GLOW[icon] || '#fff'); $('icon').style.opacity = 1; }, 450);
     }
     cur = d;
     applyUnits();
