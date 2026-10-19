@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   /* OBS: Browser Source -> Local file -> this file. Width 520, Height 340 (scales with ?scale=). Background stays transparent. */
-  :root { --scale: 1; --accent: #0E7C66; }
+  :root { --scale: 1; --accent: #0E7C66; --text: #0B1F33; --stroke: #ffffff; }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: transparent; overflow: hidden; }
   body { font-family: "Segoe UI", "Noto Sans Arabic", Tahoma, Arial, sans-serif; }
@@ -17,18 +17,19 @@
     background: transparent;
     border: calc(2px * var(--scale)) solid transparent;
     border-radius: calc(22px * var(--scale));
-    color: #0B1F33;
-    text-shadow: 0 0 6px rgba(255,255,255,.8);
+    color: var(--text);
+    text-shadow: 0 0 6px color-mix(in srgb, var(--stroke) 80%, transparent);
     font-size: calc(19px * var(--scale));
     opacity: 0; transform: translateY(12px);
     transition: opacity .8s ease, transform .8s ease;
   }
   #card.on { opacity: 1; transform: none; }
   /* Add ?bg=1 to the URL for a dark panel behind the widget */
-  #card.panel { border-color: rgba(255,255,255,.14); background-clip: padding-box; text-shadow: 0 0 6px rgba(255,255,255,.8); }
+  #card.panel { border-color: rgba(255,255,255,.14); background-clip: padding-box; text-shadow: 0 0 6px color-mix(in srgb, var(--stroke) 80%, transparent); }
   /* Dark outline behind the text keeps it readable on any background */
-  #card { -webkit-text-stroke: calc(4px * var(--scale)) rgba(255,255,255,.95); paint-order: stroke fill; }
-  #card.light { -webkit-text-stroke: 0; }
+  #card { -webkit-text-stroke: calc(4px * var(--scale)) var(--stroke); paint-order: stroke fill; }
+  #card.light, #card.nooutline, #card.panel.nooutline { -webkit-text-stroke: 0; }
+  #card.nooutline, #card.panel.nooutline { text-shadow: none; }
   #card:not(.panel) svg { filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
   /* Weather icon: soft dark drop shadow for depth + faint light glow for pop */
   #card.panel svg.icon { filter: drop-shadow(0 .15em .25em rgba(0,0,0,.55)) drop-shadow(0 0 .2em var(--glow, #fff)) drop-shadow(0 0 .55em var(--glow, #fff)); }
@@ -37,7 +38,7 @@
   .head { display: flex; justify-content: center; align-items: baseline; }
   .city { font-size: 1.8em; font-weight: 600; }
   .city span { font-weight: 600; margin-inline-start: .3em; font-size: 1.1em; }
-  .clock { font-size: 1.1em; color: #0B1F33; font-variant-numeric: tabular-nums; }
+  .clock { font-size: 1.1em; color: var(--text); font-variant-numeric: tabular-nums; }
 
   .main { display: flex; justify-content: center; align-items: center; gap: 1em; margin: .3em 0 .2em; }
   .icon { width: 8em; height: 8em; flex: none; transition: opacity .5s ease; animation: bob 6s ease-in-out infinite; }
@@ -48,7 +49,7 @@
   .cond { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.9em; margin-bottom: .5em; }
   .cond small { font-size: 1.1em; text-align: left; }
 
-  .stat { display: flex; align-items: center; gap: .5em; font-size: 1.9em; color: #0B1F33; border-top: 1px solid rgba(11,31,51,.3); padding-top: .5em; transition: opacity .4s ease; }
+  .stat { display: flex; align-items: center; gap: .5em; font-size: 1.9em; color: var(--text); border-top: 1px solid color-mix(in srgb, var(--text) 30%, transparent); padding-top: .5em; transition: opacity .4s ease; }
   .stat.out { opacity: 0; }
   .stat svg { width: 1.2em; height: 1.2em; flex: none; }
   .stat b { color: inherit; font-weight: 600; margin-inline-start: auto; }
@@ -88,6 +89,9 @@
   const card = document.getElementById('card');
   if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
   if (q.get('opacity')) document.documentElement.style.opacity = Math.min(1, Math.max(0, parseFloat(q.get('opacity'))));  // ?opacity=0..1 fades the whole widget
+  if (q.get('color')) document.documentElement.style.setProperty('--text', q.get('color'));          // ?color=#hex  text color
+  if (q.get('outline') === 'none') document.getElementById('card').classList.add('nooutline');   // ?outline=none or ?outline=#hex (text highlight)
+  else if (q.get('outline')) document.documentElement.style.setProperty('--stroke', q.get('outline'));
   if (q.get('theme') === 'light') card.classList.add('light');
   const bg = q.get('bg');
   if (bg) {
