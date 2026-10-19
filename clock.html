@@ -68,7 +68,8 @@
   .temp sup { font-size: .32em; }
   .cond { margin-bottom: .5em; justify-content: center; transition: opacity .4s ease; }
   .cond.out { opacity: 0; }
-  .stat { justify-content: center; }
+  .cond { font-size: 2.1em; }
+  .stat { justify-content: center; font-size: 2.1em; }
   .stat b { white-space: nowrap; margin-inline-start: 0; }
 </style>
 </head>
@@ -121,6 +122,14 @@
     return [[fDateEn.format(now), "ltr"], [fHijri.format(now).replace(/\s*هـ$/, ''), 'rtl']];
   }
 
+  // Shrink a line slightly if the longest Hijri month names would overflow the card
+  function fit(el, box) {
+    el.style.fontSize = '';
+    const max = box.clientWidth - parseFloat(getComputedStyle(box).paddingLeft) - parseFloat(getComputedStyle(box).paddingRight);
+    let s = parseFloat(getComputedStyle(el).fontSize);
+    while (el.getBoundingClientRect().width > max && s > 12) { s -= 1; el.style.fontSize = s + 'px'; }
+  }
+
   function tick() {
     const now = new Date();
     const parts = fTime.formatToParts(now);
@@ -133,6 +142,7 @@
     $('cond').dir = dir; $('cond').lang = dir === 'rtl' ? 'ar' : 'en';
     $("stat").dir = dir; $("stat").lang = dir === "rtl" ? "ar" : "en";
     $('stat-v').textContent = v;
+    fit($('stat-v'), $('stat'));
     card.classList.add('on');
   }
   tick(); setInterval(tick, 1000);
