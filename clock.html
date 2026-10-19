@@ -87,6 +87,7 @@
   const q = new URLSearchParams(location.search);
   const card = document.getElementById('card');
   if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
+  if (q.get('opacity')) document.documentElement.style.opacity = Math.min(1, Math.max(0, parseFloat(q.get('opacity'))));  // ?opacity=0..1 fades the whole widget
   if (q.get('theme') === 'light') card.classList.add('light');
   const bg = q.get('bg');
   if (bg) {

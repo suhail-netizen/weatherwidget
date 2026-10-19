@@ -8,6 +8,7 @@
   :root { color-scheme: light dark; --bg:#f4f6f8; --card:#fff; --ink:#0B1F33; --mute:#5b6b7b; --line:#d9e0e7; --accent:#0B5D4E; --accent-ink:#fff; }
   @media (prefers-color-scheme: dark) { :root { --bg:#10161c; --card:#18212a; --ink:#e8eef4; --mute:#93a3b3; --line:#2a3642; --accent:#2fae95; --accent-ink:#06201a; } }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
   header { padding: 20px 24px 6px; max-width: 1200px; margin: 0 auto; }
   h1 { margin: 0 0 4px; font-size: 22px; }
@@ -21,6 +22,12 @@
   input[type=text], select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
   input[type=range] { width: 100%; accent-color: var(--accent); }
   input[type=color] { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 2px; }
+  .field { display: grid; gap: 8px; font-size: 14px; }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 2px solid var(--line); position: relative; }
+  .sw button[aria-pressed=true] { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sw button.none { background: conic-gradient(#ddd 25%, #fff 0 50%, #ddd 0 75%, #fff 0) 0 0 / 12px 12px; }
+  .sw button.none::after { content: ""; position: absolute; inset: 4px; background: linear-gradient(135deg, transparent 46%, #d33 46% 54%, transparent 54%); }
   .row { display: flex; gap: 8px; align-items: center; }
   .row > * { flex: 1; }
   .chk { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 14px; }
@@ -51,19 +58,13 @@
   <section class="panel">
     <h2>Shared look</h2>
     <div class="grid">
-      <label><b>Panel</b>
-        <select id="bg">
-          <option value="">None (transparent)</option>
-          <option value="teal">Teal</option>
-          <option value="navy">Navy</option>
-          <option value="blue">Blue</option>
-          <option value="charcoal">Charcoal</option>
-          <option value="plum">Plum</option>
-          <option value="custom">Custom color…</option>
-        </select>
-      </label>
+      <div class="field" style="grid-column: 1 / -1"><b>Panel color</b>
+        <div id="swatches" class="sw"></div>
+        <select id="bg" hidden></select>
+      </div>
       <label id="bgcWrap" hidden><b>Custom panel color</b><input type="color" id="bgc" value="#0B5D4E"></label>
       <label><b>Panel opacity: <span id="alphaV">30</span>%</b><input type="range" id="alpha" min="0" max="100" value="30"></label>
+      <label><b>Whole-widget opacity: <span id="opV">100</span>%</b><input type="range" id="opacity" min="10" max="100" value="100"></label>
       <label><b>Size (scale): <span id="scaleV">1.5</span>×</b><input type="range" id="scale" min="0.5" max="3" step="0.1" value="1.5"></label>
       <label><b>Preview backdrop</b>
         <div class="seg" id="backdrop">
@@ -121,9 +122,10 @@
   const $ = id => document.getElementById(id);
   const BASE = new URL('.', location.href).href;           // folder this page lives in
   const KEY = 'widget-control-v1';
-  const DEFAULTS = { bg: 'teal', bgc: '#0B5D4E', alpha: 30, scale: 1.5, backdrop: 'white',
+  const DEFAULTS = { bg: 'teal', bgc: '#0B5D4E', alpha: 30, opacity: 100, scale: 1.5, backdrop: 'white',
                      'w-light': false, 'c-tz': 'Asia/Riyadh', 'c-h24': false, 'c-light': false,
-                     's-color': '#0B1F33', 's-shine': '#E8B93A', 's-still': false };
+                     's-color': '#0B1F33', 's-shine': '#E8B93A', 's-still': false,
+                     'w-same': true, 'w-alpha': 30, 'c-same': true, 'c-alpha': 30, 's-same': true, 's-alpha': 30 };
   // Natural size of each widget at scale 1 (px), used to size previews and suggest OBS dimensions
   const SIZES = { weather: [400, 343], clock: [400, 343], sig: [400, 326] };
 
@@ -131,7 +133,7 @@
   try { S = { ...S, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 
-  const fields = ['bg','bgc','alpha','scale','w-light','c-tz','c-h24','c-light','s-color','s-shine','s-still'];
+  const fields = ['bg','bgc','alpha','opacity','scale','w-light','c-tz','c-h24','c-light','s-color','s-shine','s-still','w-same','w-alpha','c-same','c-alpha','s-same','s-alpha'];
   function load() {
     fields.forEach(k => { const el = $(k), v = S[k]; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; });
     document.querySelectorAll('#backdrop button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.backdrop));
@@ -140,17 +142,20 @@
     fields.forEach(k => { const el = $(k); S[k] = el.type === 'checkbox' ? el.checked : (el.type === 'range' ? Number(el.value) : el.value); });
   }
 
-  function common() {
+  function common(kind) {
+    const pre = { weather: 'w', clock: 'c', sig: 's' }[kind];
+    const alpha = S[pre + '-same'] ? S.alpha : S[pre + '-alpha'];
     const p = new URLSearchParams();
     if (S.bg) {
       p.set('bg', S.bg === 'custom' ? S.bgc : S.bg);
-      p.set('alpha', (S.alpha / 100).toFixed(2).replace(/\.?0+$/, ''));
+      p.set('alpha', (alpha / 100).toFixed(2).replace(/\.?0+$/, ''));
     }
+    if (Number(S.opacity) !== 100) p.set('opacity', String(S.opacity / 100));
     if (Number(S.scale) !== 1) p.set('scale', String(S.scale));
     return p;
   }
   function urlFor(kind) {
-    const p = common();
+    const p = common(kind);
     if (kind === 'weather') { if (S['w-light']) p.set('theme', 'light'); }
     if (kind === 'clock') {
       if (S['c-light']) p.set('theme', 'light');
@@ -168,6 +173,33 @@
   }
 
   const sections = { weather: $('w-weather'), clock: $('w-clock'), sig: $('w-sig') };
+  // Per-widget panel opacity (overrides the shared slider when "same as shared" is off)
+  Object.entries({ weather: 'w', clock: 'c', sig: 's' }).forEach(([kind, p]) => {
+    sections[kind].querySelector('.grid').insertAdjacentHTML('afterbegin',
+      `<label class="chk"><input type="checkbox" id="${p}-same"> Panel opacity same as shared</label>` +
+      `<label><b>Panel opacity: <span id="${p}-alphaV"></span>%</b><input type="range" id="${p}-alpha" min="0" max="100"></label>`);
+  });
+  // Panel color swatches (named presets keep short URLs; the rest are passed as hex)
+  const COLORS = [
+    ['', 'None (transparent)'], ['teal', 'Teal'], ['navy', 'Navy'], ['blue', 'Blue'], ['charcoal', 'Charcoal'], ['plum', 'Plum'],
+    ['#000000', 'Black'], ['#FFFFFF', 'White'], ['#F5F1E6', 'Cream'], ['#5B6B7B', 'Slate'], ['#2F855A', 'Green'], ['#1B4332', 'Forest'],
+    ['#6B8E23', 'Olive'], ['#0EA5E9', 'Sky'], ['#00A3A3', 'Aqua'], ['#7C3AED', 'Purple'], ['#C2185B', 'Magenta'], ['#E11D48', 'Red'],
+    ['#7F1D1D', 'Maroon'], ['#F97316', 'Orange'], ['#EAB308', 'Gold'], ['#8B5A2B', 'Brown'], ['custom', 'Custom color…']
+  ];
+  const PRESET_HEX = { teal: '#0B5D4E', navy: '#0A121E', blue: '#14457A', charcoal: '#262E36', plum: '#4A2556' };
+  (() => {
+    const sel = $('bg'), box = $('swatches');
+    COLORS.forEach(([v, name]) => {
+      sel.insertAdjacentHTML('beforeend', `<option value="${v}">${name}</option>`);
+      const b = document.createElement('button');
+      b.type = 'button'; b.dataset.v = v; b.title = name; b.setAttribute('aria-label', name);
+      if (!v) b.className = 'none';
+      else if (v === 'custom') b.style.background = 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)';
+      else b.style.background = PRESET_HEX[v] || v;
+      b.addEventListener('click', () => { sel.value = v; sel.dispatchEvent(new Event('input', { bubbles: true })); });
+      box.appendChild(b);
+    });
+  })();
   const timers = {};
   function render(kind) {
     const sec = sections[kind], url = urlFor(kind), stage = sec.querySelector('.stage');
@@ -191,9 +223,15 @@
   function sync() {
     read();
     $('alphaV').textContent = S.alpha;
+    $('opV').textContent = S.opacity;
     $('scaleV').textContent = Number(S.scale).toFixed(1);
     $('bgcWrap').hidden = S.bg !== 'custom';
+    document.querySelectorAll('#swatches button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.bg));
     $('alpha').disabled = !S.bg;
+    ['w','c','s'].forEach(p => {
+      $(p + '-alpha').disabled = !S.bg || S[p + '-same'];
+      $(p + '-alphaV').textContent = S[p + '-same'] ? S.alpha : S[p + '-alpha'];
+    });
     save(); renderAll();
   }
   fields.forEach(k => $(k).addEventListener('input', sync));
