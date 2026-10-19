@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<title>Signature Widget</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* OBS: Browser Source. Width 440, Height 340 at scale 1 (multiply by ?scale=). Background stays transparent.
+     URL options: ?scale=1.5  ?color=%230B1F33 (ink)  ?shine=%23E8B93A (shimmer + glow)
+                  ?bg=teal&alpha=0.3 (panel, same presets as the other widgets)  ?still=1 (no animation) */
+  :root { --scale: 1; --ink: #0B1F33; --shine: #E8B93A; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+
+  #card {
+    width: calc(400px * var(--scale));
+    padding: calc(14px * var(--scale));
+    border: calc(2px * var(--scale)) solid transparent;
+    border-radius: calc(22px * var(--scale));
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+  #card.on { opacity: 1; }
+  #card.panel { border-color: rgba(255,255,255,.14); background-clip: padding-box; }
+
+  /* Gentle float + breathing glow live on the wrapper so they don't fight the ink's own animations */
+  .float { animation: float 8s ease-in-out infinite; }
+  .glow  { animation: glow 6s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(calc(-5px * var(--scale))); } }
+  @keyframes glow {
+    0%, 100% { filter: drop-shadow(0 0 calc(3px  * var(--scale)) color-mix(in srgb, var(--shine) 18%, transparent)); }
+    50%      { filter: drop-shadow(0 0 calc(10px * var(--scale)) color-mix(in srgb, var(--shine) 55%, transparent)); }
+  }
+
+  /* The artwork is a transparent PNG used as a mask, so any ink color / shimmer can be painted through it */
+  .ink {
+    width: 100%;
+    aspect-ratio: 1227 / 978;
+    -webkit-mask: url("tughra-mask.png") center / contain no-repeat;
+            mask: url("tughra-mask.png") center / contain no-repeat;
+    background:
+      linear-gradient(105deg, transparent 42%, var(--shine) 50%, transparent 58%) 160% 0 / 260% 100% no-repeat,
+      var(--ink);
+    /* draw-in from the right (Arabic writing direction), then a slow shimmer every few seconds */
+    clip-path: inset(0 0 0 100%);
+    animation:
+      reveal 3.2s cubic-bezier(.45,.05,.25,1) .3s forwards,
+      shimmer 9s ease-in-out 4s infinite;
+  }
+  @keyframes reveal  { to { clip-path: inset(0 0 0 0); } }
+  @keyframes shimmer { 0% { background-position: 160% 0, 0 0; } 45%, 100% { background-position: -60% 0, 0 0; } }
+
+  .still .float, .still .glow, .still .ink { animation: none; clip-path: none; }
+  .still .ink { background: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { .float, .glow { animation: none; } }
+</style>
+</head>
+<body>
+<div id="card"><div class="float"><div class="glow"><div class="ink" role="img" aria-label="Signature"></div></div></div></div>
+<script>
+(() => {
+  const q = new URLSearchParams(location.search);
+  const root = document.documentElement.style, card = document.getElementById('card');
+  if (q.get('scale')) root.setProperty('--scale', q.get('scale'));
+  if (q.get('color')) root.setProperty('--ink', q.get('color'));
+  if (q.get('shine')) root.setProperty('--shine', q.get('shine'));
+  if (q.get('still') === '1') card.classList.add('still');
+  const bg = q.get('bg');
+  if (bg) {
+    const P = { '1':'#0A121E', navy:'#0A121E', teal:'#0B5D4E', blue:'#14457A', charcoal:'#262E36', plum:'#4A2556' };
+    const col = P[bg] || (/^#[0-9a-f]{3,8}$/i.test(bg) ? bg : P.navy);
+    card.classList.add('panel');
+    const a = Math.min(1, Math.max(0, parseFloat(q.get('alpha') ?? '0.3')));
+    card.style.background = `color-mix(in srgb, ${col} ${a * 100}%, transparent)`;
+  }
+  requestAnimationFrame(() => card.classList.add('on'));
+})();
+</script>
+</body>
+</html>
