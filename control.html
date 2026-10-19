@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Widget Control Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; --bg:#f4f6f8; --card:#fff; --ink:#0B1F33; --mute:#5b6b7b; --line:#d9e0e7; --accent:#0B5D4E; --accent-ink:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#10161c; --card:#18212a; --ink:#e8eef4; --mute:#93a3b3; --line:#2a3642; --accent:#2fae95; --accent-ink:#06201a; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
+  header { padding: 20px 24px 6px; max-width: 1200px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  header p { margin: 0; color: var(--mute); }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px 24px 40px; display: grid; gap: 16px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .panel h2 { margin: 0 0 12px; font-size: 16px; }
+  .grid { display: grid; gap: 14px 18px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+  label { display: grid; gap: 5px; font-size: 13px; color: var(--mute); }
+  label b { color: var(--ink); font-weight: 600; font-size: 14px; }
+  input[type=text], select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=color] { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 2px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { flex: 1; }
+  .chk { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 14px; }
+  .widgets { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .stage { position: relative; border-radius: 10px; border: 1px solid var(--line); height: 300px; overflow: hidden; margin: 4px 0 12px; }
+  .stage.white { background: #fff; }
+  .stage.dark { background: #111; }
+  .stage.check { background: conic-gradient(#ddd 25%, #fff 0 50%, #ddd 0 75%, #fff 0) 0 0 / 20px 20px; }
+  .stage iframe { position: absolute; left: 50%; top: 50%; border: 0; background: transparent; transform-origin: center; }
+  .url { width: 100%; font: 12px/1.4 ui-monospace, Consolas, monospace; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); resize: none; }
+  .actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .size { color: var(--mute); font-size: 13px; }
+  .hint { color: var(--mute); font-size: 13px; margin: 8px 0 0; }
+  .seg { display: flex; gap: 6px; }
+  .seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Widget Control Panel</h1>
+  <p>Pick the look, watch the live preview, then copy each widget's URL into an OBS Browser Source.</p>
+</header>
+<main>
+  <section class="panel">
+    <h2>Shared look</h2>
+    <div class="grid">
+      <label><b>Panel</b>
+        <select id="bg">
+          <option value="">None (transparent)</option>
+          <option value="teal">Teal</option>
+          <option value="navy">Navy</option>
+          <option value="blue">Blue</option>
+          <option value="charcoal">Charcoal</option>
+          <option value="plum">Plum</option>
+          <option value="custom">Custom color…</option>
+        </select>
+      </label>
+      <label id="bgcWrap" hidden><b>Custom panel color</b><input type="color" id="bgc" value="#0B5D4E"></label>
+      <label><b>Panel opacity: <span id="alphaV">30</span>%</b><input type="range" id="alpha" min="0" max="100" value="30"></label>
+      <label><b>Size (scale): <span id="scaleV">1.5</span>×</b><input type="range" id="scale" min="0.5" max="3" step="0.1" value="1.5"></label>
+      <label><b>Preview backdrop</b>
+        <div class="seg" id="backdrop">
+          <button type="button" data-v="white" aria-pressed="true">White</button>
+          <button type="button" data-v="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-v="check" aria-pressed="false">Checker</button>
+        </div>
+      </label>
+    </div>
+    <p class="hint">Settings are remembered in this browser. OBS can't read them live, so copy the URLs below into OBS after changing anything.</p>
+  </section>
+
+  <div class="widgets">
+    <section class="panel" id="w-weather">
+      <h2>Weather</h2>
+      <div class="stage white"></div>
+      <div class="grid">
+        <label class="chk"><input type="checkbox" id="w-light"> Light theme (dark text, no outline)</label>
+      </div>
+      <textarea class="url" rows="3" readonly></textarea>
+      <div class="actions"><button class="primary" data-copy>Copy URL</button><button data-open>Open</button><span class="size"></span></div>
+    </section>
+
+    <section class="panel" id="w-clock">
+      <h2>Clock</h2>
+      <div class="stage white"></div>
+      <div class="grid">
+        <label><b>Time zone</b><input type="text" id="c-tz" value="Asia/Riyadh" placeholder="Asia/Riyadh"></label>
+        <label class="chk"><input type="checkbox" id="c-h24"> 24-hour time</label>
+        <label class="chk"><input type="checkbox" id="c-light"> Light theme (dark text, no outline)</label>
+      </div>
+      <textarea class="url" rows="3" readonly></textarea>
+      <div class="actions"><button class="primary" data-copy>Copy URL</button><button data-open>Open</button><span class="size"></span></div>
+    </section>
+
+    <section class="panel" id="w-sig">
+      <h2>Signature</h2>
+      <div class="stage white"></div>
+      <div class="grid">
+        <label><b>Ink color</b><input type="color" id="s-color" value="#0B1F33"></label>
+        <label><b>Shine / glow color</b><input type="color" id="s-shine" value="#E8B93A"></label>
+        <label class="chk"><input type="checkbox" id="s-still"> No animation</label>
+      </div>
+      <textarea class="url" rows="3" readonly></textarea>
+      <div class="actions"><button class="primary" data-copy>Copy URL</button><button data-open>Open</button><span class="size"></span></div>
+    </section>
+  </div>
+
+  <div class="actions" style="margin-top:0"><button id="reset">Reset to defaults</button></div>
+</main>
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const BASE = new URL('.', location.href).href;           // folder this page lives in
+  const KEY = 'widget-control-v1';
+  const DEFAULTS = { bg: 'teal', bgc: '#0B5D4E', alpha: 30, scale: 1.5, backdrop: 'white',
+                     'w-light': false, 'c-tz': 'Asia/Riyadh', 'c-h24': false, 'c-light': false,
+                     's-color': '#0B1F33', 's-shine': '#E8B93A', 's-still': false };
+  // Natural size of each widget at scale 1 (px), used to size previews and suggest OBS dimensions
+  const SIZES = { weather: [400, 343], clock: [400, 343], sig: [400, 326] };
+
+  let S = { ...DEFAULTS };
+  try { S = { ...S, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+  const fields = ['bg','bgc','alpha','scale','w-light','c-tz','c-h24','c-light','s-color','s-shine','s-still'];
+  function load() {
+    fields.forEach(k => { const el = $(k), v = S[k]; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; });
+    document.querySelectorAll('#backdrop button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.backdrop));
+  }
+  function read() {
+    fields.forEach(k => { const el = $(k); S[k] = el.type === 'checkbox' ? el.checked : (el.type === 'range' ? Number(el.value) : el.value); });
+  }
+
+  function common() {
+    const p = new URLSearchParams();
+    if (S.bg) {
+      p.set('bg', S.bg === 'custom' ? S.bgc : S.bg);
+      p.set('alpha', (S.alpha / 100).toFixed(2).replace(/\.?0+$/, ''));
+    }
+    if (Number(S.scale) !== 1) p.set('scale', String(S.scale));
+    return p;
+  }
+  function urlFor(kind) {
+    const p = common();
+    if (kind === 'weather') { if (S['w-light']) p.set('theme', 'light'); }
+    if (kind === 'clock') {
+      if (S['c-light']) p.set('theme', 'light');
+      if (S['c-tz'] && S['c-tz'] !== 'Asia/Riyadh') p.set('tz', S['c-tz']);
+      if (S['c-h24']) p.set('h24', '1');
+    }
+    if (kind === 'sig') {
+      if (S['s-color'].toLowerCase() !== '#0b1f33') p.set('color', S['s-color']);
+      if (S['s-shine'].toLowerCase() !== '#e8b93a') p.set('shine', S['s-shine']);
+      if (S['s-still']) p.set('still', '1');
+    }
+    const file = { weather: '', clock: 'clock.html', sig: 'signature.html' }[kind];
+    const q = p.toString();
+    return BASE + file + (q ? '?' + q : '');
+  }
+
+  const sections = { weather: $('w-weather'), clock: $('w-clock'), sig: $('w-sig') };
+  const timers = {};
+  function render(kind) {
+    const sec = sections[kind], url = urlFor(kind), stage = sec.querySelector('.stage');
+    sec.querySelector('.url').value = url;
+    const [bw, bh] = SIZES[kind], k = Number(S.scale);
+    const w = Math.ceil(bw * k) + 20, h = Math.ceil(bh * k) + 20;
+    sec.querySelector('.size').textContent = `OBS source size: ${w} × ${h}`;
+    stage.className = 'stage ' + S.backdrop;
+    clearTimeout(timers[kind]);
+    timers[kind] = setTimeout(() => {
+      let f = stage.querySelector('iframe');
+      if (!f) { f = document.createElement('iframe'); stage.appendChild(f); }
+      f.style.width = w + 'px'; f.style.height = h + 'px';
+      const fit = Math.min(1, (stage.clientWidth - 16) / w, (stage.clientHeight - 16) / h);
+      f.style.transform = `translate(-50%, -50%) scale(${fit})`;
+      if (f.dataset.src !== url) { f.dataset.src = url; f.src = url; }
+    }, 250);
+  }
+  const renderAll = () => Object.keys(sections).forEach(render);
+
+  function sync() {
+    read();
+    $('alphaV').textContent = S.alpha;
+    $('scaleV').textContent = Number(S.scale).toFixed(1);
+    $('bgcWrap').hidden = S.bg !== 'custom';
+    $('alpha').disabled = !S.bg;
+    save(); renderAll();
+  }
+  fields.forEach(k => $(k).addEventListener('input', sync));
+  document.querySelectorAll('#backdrop button').forEach(b => b.addEventListener('click', () => {
+    S.backdrop = b.dataset.v;
+    document.querySelectorAll('#backdrop button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    save(); renderAll();
+  }));
+
+  const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1400); };
+  Object.entries(sections).forEach(([kind, sec]) => {
+    sec.querySelector('[data-copy]').addEventListener('click', async () => {
+      const ta = sec.querySelector('.url');
+      try { await navigator.clipboard.writeText(ta.value); } catch (e) { ta.select(); document.execCommand('copy'); }
+      toast('URL copied');
+    });
+    sec.querySelector('[data-open]').addEventListener('click', () => window.open(sec.querySelector('.url').value, '_blank'));
+  });
+  $('reset').addEventListener('click', () => { S = { ...DEFAULTS }; load(); sync(); });
+  window.addEventListener('resize', renderAll);
+
+  load(); sync();
+})();
+</script>
+</body>
+</html>
