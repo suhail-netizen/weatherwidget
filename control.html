@@ -138,7 +138,7 @@
                      's-color': '#0B1F33', 's-shine': '#E8B93A', 's-still': false,
                      tcolor: '#0B1F33', ocolor: '#FFFFFF', onone: false, 'w-same': true, 'w-alpha': 30, 'c-same': true, 'c-alpha': 30, 's-same': true, 's-alpha': 30 };
   // Natural size of each widget at scale 1 (px), used to size previews and suggest OBS dimensions
-  const SIZES = { weather: [400, 343], clock: [400, 357], sig: [400, 326] };
+  const SIZES = { weather: [400, 343], clock: [400, 359], sig: [400, 326] };
 
   let S = { ...DEFAULTS };
   try { S = { ...S, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (e) {}
